@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoodMatch - Mood-to-Anything Recommender</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --card: #1c1c27;
+      --accent: #7c6aff;
+      --accent2: #ff6a8a;
+      --text: #e8e8f0;
+      --muted: #6b6b80;
+      --border: #2a2a3a;
+      --warn: #f2cc60;
+      --radius: 16px;
+      --shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(1000px 500px at 8% -10%, rgba(124, 106, 255, 0.24), transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, rgba(255, 106, 138, 0.12), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: "DM Sans", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 32px 14px;
+    }
+
+    .app {
+      width: min(680px, 95%);
+    }
+
+    .panel {
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(5px);
+    }
+
+    .label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.83rem;
+      margin-bottom: 7px;
+      letter-spacing: 0.02em;
+    }
+
+    .mood-input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      outline: none;
+      transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+    }
+
+    .server-note {
+      margin: 0 0 14px;
+      color: #9a9ab3;
+      font-size: 0.84rem;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 9px 10px;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-family: "Syne", sans-serif;
+      letter-spacing: 0.05em;
+      font-size: clamp(1.7rem, 5vw, 2.2rem);
+    }
+
+    .subtitle {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+
+    .mood-wrap {
+      position: relative;
+      margin-bottom: 14px;
+    }
+
+    .mood-input {
+      min-height: 128px;
+      resize: vertical;
+      padding: 14px 14px 30px;
+      font-size: 1rem;
+      line-height: 1.45;
+    }
+
+    .mood-input::placeholder {
+      color: #767692;
+    }
+
+    .mood-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(124, 106, 255, 0.17), 0 0 30px rgba(124, 106, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .mood-input.loading {
+      animation: pulseGlow 1.15s ease-in-out infinite;
+    }
+
+    .counter {
+      position: absolute;
+      right: 10px;
+      bottom: 8px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      user-select: none;
+    }
+
+    .pills {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 14px 0 18px;
+    }
+
+    .pill {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 9px 10px;
+      font: inherit;
+      font-size: 0.92rem;
+      cursor: pointer;
+      transition: all 200ms ease;
+      white-space: nowrap;
+    }
+
+    .pill:hover {
+      border-color: rgba(124, 106, 255, 0.62);
+      transform: translateY(-1px);
+    }
+
+    .pill.active {
+      background: linear-gradient(90deg, var(--accent), #6654f0);
+      border-color: transparent;
+      box-shadow: 0 10px 18px rgba(124, 106, 255, 0.28);
+    }
+
+    .recommend-btn {
+      width: 100%;
+      border: 0;
+      border-radius: 13px;
+      padding: 13px 16px;
+      font: 700 1rem/1 "DM Sans", sans-serif;
+      color: #fff;
+      background: linear-gradient(92deg, var(--accent), #8d78ff 60%, var(--accent2));
+      cursor: pointer;
+      transition: transform 180ms ease, filter 180ms ease, opacity 180ms ease;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      min-height: 46px;
+    }
+
+    .recommend-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      filter: brightness(1.08);
+    }
+
+    .recommend-btn:disabled {
+      opacity: 0.72;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      display: none;
+    }
+
+    .recommend-btn.loading .spinner {
+      display: inline-block;
+    }
+
+    .results {
+      margin-top: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .card {
+      position: relative;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)), var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+      opacity: 0;
+      transform: translateY(10px);
+      animation: slideUp 420ms ease forwards;
+    }
+
+    .card-accent-bar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: var(--accent);
+    }
+
+    .card-content {
+      padding: 14px 14px 14px 16px;
+    }
+
+    .card-title {
+      margin: 0 0 10px;
+      font-family: "Syne", sans-serif;
+      font-size: 1.08rem;
+      line-height: 1.2;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .tag {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      color: #c2c2d8;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .match-bar-wrapper {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 9px;
+    }
+
+    .match-label,
+    .match-score {
+      font-size: 0.76rem;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+    }
+
+    .match-bar {
+      height: 8px;
+      border-radius: 999px;
+      background: #232334;
+      overflow: hidden;
+      border: 1px solid #2f2f45;
+    }
+
+    .match-fill {
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      transition: width 700ms ease;
+      background: linear-gradient(90deg, var(--accent), #8f7eff);
+    }
+
+    .card-reason {
+      margin: 0;
+      color: #a3a3ba;
+      font-style: italic;
+      font-size: 0.91rem;
+      line-height: 1.35;
+    }
+
+    .rs-box {
+      margin-top: 8px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.015);
+      font-size: 0.9rem;
+    }
+
+    .rs-box h4 {
+      margin: 0 0 6px;
+      font-size: 0.92rem;
+      font-family: "Syne", sans-serif;
+      letter-spacing: 0.02em;
+    }
+
+    .rs-box p {
+      margin: 0;
+      color: #b9b9cd;
+      line-height: 1.4;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .stat {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.012);
+    }
+
+    .stat-label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      margin-bottom: 3px;
+    }
+
+    .stat-value {
+      display: block;
+      font-family: "Syne", sans-serif;
+      font-size: 1rem;
+      letter-spacing: 0.01em;
+    }
+
+    .error {
+      margin-top: 10px;
+      border: 1px solid rgba(255, 118, 118, 0.35);
+      background: rgba(255, 118, 118, 0.08);
+      color: #ffd5d5;
+      padding: 11px 12px;
+      border-radius: 11px;
+      font-size: 0.9rem;
+    }
+
+    .skeleton {
+      padding: 14px;
+      opacity: 1;
+      transform: none;
+      animation: none;
+      background: var(--card);
+    }
+
+    .skel-line {
+      height: 12px;
+      border-radius: 7px;
+      background: linear-gradient(90deg, #2a2a3a 25%, #3b3b50 45%, #2a2a3a 65%);
+      background-size: 240% 100%;
+      animation: shimmer 1.2s linear infinite;
+      margin: 8px 0;
+    }
+
+    .skel-line.wide { width: 92%; }
+    .skel-line.medium { width: 68%; }
+    .skel-line.short { width: 44%; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes shimmer {
+      from { background-position: 200% 0; }
+      to { background-position: -20% 0; }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(124, 106, 255, 0.08), 0 0 20px rgba(124, 106, 255, 0.15); }
+      50% { box-shadow: 0 0 0 4px rgba(124, 106, 255, 0.18), 0 0 35px rgba(124, 106, 255, 0.3); }
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 16px 8px 24px; }
+      .panel { padding: 16px; }
+      .pills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="panel">
+      <h1>MOODMATCH</h1>
+      <p class="subtitle">Type your vibe. Get your match.</p>
+      <p class="server-note">Using backend Gemini integration. Set <code>GEMINI_API_KEY</code> on the server before running.</p>
+
+      <div class="mood-wrap">
+        <textarea id="moodInput" class="mood-input" maxlength="150" placeholder="e.g. stressed but need to focus..."></textarea>
+        <span class="counter" id="charCounter">0 / 150</span>
+      </div>
+
+      <div class="pills" id="categoryPills">
+        <button class="pill active" data-category="Games" aria-pressed="true">🎮 Games</button>
+        <button class="pill" data-category="Music" aria-pressed="false">🎵 Music</button>
+        <button class="pill" data-category="Movies" aria-pressed="false">🎬 Movies</button>
+        <button class="pill" data-category="Study" aria-pressed="false">📚 Study</button>
+      </div>
+
+      <button id="recommendBtn" class="recommend-btn" type="button">
+        <span class="btn-text">Find My Match -></span>
+        <span class="spinner" aria-hidden="true"></span>
+      </button>
+
+      <section id="results" class="results" aria-live="polite"></section>
+    </section>
+  </main>
+
+  <script>
+    const moodInput = document.getElementById("moodInput");
+    const charCounter = document.getElementById("charCounter");
+    const categoryPills = document.getElementById("categoryPills");
+    const recommendBtn = document.getElementById("recommendBtn");
+    const resultsEl = document.getElementById("results");
+
+    let selectedCategory = "Games";
+
+    moodInput.addEventListener("input", () => {
+      charCounter.textContent = `${moodInput.value.length} / 150`;
+    });
+
+    categoryPills.addEventListener("click", (event) => {
+      const button = event.target.closest(".pill");
+      if (!button) return;
+      selectedCategory = button.dataset.category || "Games";
+      document.querySelectorAll(".pill").forEach((pill) => {
+        pill.classList.remove("active");
+        pill.setAttribute("aria-pressed", "false");
+      });
+      button.classList.add("active");
+      button.setAttribute("aria-pressed", "true");
+    });
+
+    moodInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        recommendBtn.click();
+      }
+    });
+
+    recommendBtn.addEventListener("click", async () => {
+      const userMood = moodInput.value.trim();
+      if (!userMood) {
+        showError("Tell me how you're feeling so I can find a match.");
+        return;
+      }
+
+      clearResults();
+      setLoading(true);
+      renderSkeletons(3);
+
+      try {
+        const recommendations = await fetchRecommendations(userMood, selectedCategory);
+        clearResults();
+        renderRecommendations(recommendations);
+        renderStats(recommendations);
+        renderConceptFooter();
+      } catch (error) {
+        clearResults();
+        showError("Couldn't read your vibe. Try describing it differently.");
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    async function fetchRecommendations(userMood, category) {
+      const response = await fetch("/api/recommend", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          mood: userMood,
+          category
+        })
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `API request failed with ${response.status}`);
+      }
+
+      const data = await response.json();
+      const parsed = data.recommendations;
+      if (!Array.isArray(parsed)) {
+        throw new Error("Invalid recommendation format");
+      }
+
+      return parsed.slice(0, 5).map(normalizeRecommendation);
+    }
+
+    function normalizeRecommendation(item) {
+      const title = String(item?.title || "Untitled match").trim();
+      const tags = Array.isArray(item?.tags) ? item.tags.slice(0, 5).map((t) => String(t).trim()).filter(Boolean) : [];
+      const match = clampNumber(Number(item?.match), 60, 99);
+      const reason = String(item?.reason || "This pick aligns with your current mood and category intent.").trim();
+      return { title, tags, match, reason };
+    }
+
+    function clampNumber(value, min, max) {
+      if (Number.isNaN(value)) return min;
+      return Math.min(max, Math.max(min, Math.round(value)));
+    }
+
+    function setLoading(isLoading) {
+      recommendBtn.disabled = isLoading;
+      recommendBtn.classList.toggle("loading", isLoading);
+      moodInput.classList.toggle("loading", isLoading);
+      const btnLabel = recommendBtn.querySelector(".btn-text");
+      btnLabel.textContent = isLoading ? "Finding your match..." : "Find My Match ->";
+    }
+
+    function clearResults() {
+      resultsEl.innerHTML = "";
+    }
+
+    function renderSkeletons(count) {
+      for (let i = 0; i < count; i += 1) {
+        const skeleton = document.createElement("article");
+        skeleton.className = "card skeleton";
+        skeleton.innerHTML = `
+          <div class="skel-line wide"></div>
+          <div class="skel-line medium"></div>
+          <div class="skel-line short"></div>
+        `;
+        resultsEl.appendChild(skeleton);
+      }
+    }
+
+    function renderRecommendations(list) {
+      list.forEach((item, index) => {
+        const card = document.createElement("article");
+        card.className = "card";
+        card.style.animationDelay = `${index * 70}ms`;
+        const accentColor = getAccentColor(item.match);
+        const tagMarkup = item.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("");
+
+        card.innerHTML = `
+          <div class="card-accent-bar" style="background:${accentColor};"></div>
+          <div class="card-content">
+            <h3 class="card-title">${escapeHtml(item.title)}</h3>
+            <div class="card-tags">${tagMarkup || '<span class="tag">personalized</span>'}</div>
+            <div class="match-bar-wrapper">
+              <span class="match-label">Match</span>
+              <div class="match-bar">
+                <div class="match-fill" style="background:${accentColor};"></div>
+              </div>
+              <span class="match-score">${item.match}%</span>
+            </div>
+            <p class="card-reason">${escapeHtml(item.reason)}</p>
+          </div>
+        `;
+        resultsEl.appendChild(card);
+        const fill = card.querySelector(".match-fill");
+        requestAnimationFrame(() => {
+          fill.style.width = `${item.match}%`;
+        });
+      });
+    }
+
+    function renderConceptFooter() {
+      const box = document.createElement("aside");
+      box.className = "rs-box";
+      box.innerHTML = `
+        <h4>⚙️ How this works</h4>
+        <p>Hybrid Recommendation: a knowledge-based layer maps mood to content tags, and a content-based layer scores fit by tag overlap.</p>
+      `;
+      resultsEl.appendChild(box);
+    }
+
+    function renderStats(list) {
+      const uniqueTags = new Set();
+      list.forEach((item) => item.tags.forEach((tag) => uniqueTags.add(tag.toLowerCase())));
+      const avgMatch = Math.round(list.reduce((sum, item) => sum + item.match, 0) / Math.max(list.length, 1));
+      const coverage = Math.min(100, Math.round((uniqueTags.size / 12) * 100));
+      const novelty = Math.max(10, Math.min(98, Math.round((uniqueTags.size * 4 + (100 - avgMatch) * 0.4))));
+
+      const wrap = document.createElement("div");
+      wrap.className = "stats-row";
+      wrap.innerHTML = `
+        <div class="stat">
+          <span class="stat-label">Coverage</span>
+          <span class="stat-value">${coverage}%</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Novelty</span>
+          <span class="stat-value">${novelty}%</span>
+        </div>
+      `;
+      resultsEl.appendChild(wrap);
+    }
+
+    function showError(message) {
+      clearResults();
+      const box = document.createElement("div");
+      box.className = "error";
+      box.textContent = message;
+      resultsEl.appendChild(box);
+    }
+
+    function getAccentColor(score) {
+      if (score >= 85) return "var(--accent)";
+      if (score >= 72) return "var(--warn)";
+      return "var(--muted)";
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
